@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Joppa Air Quality Model — Dallas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f9f8f5; --surface: #ffffff; --border: rgba(0,0,0,0.12);
+    --text: #1a1a18; --muted: #5f5e5a; --radius: 10px;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  header { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 1.25rem 2rem; display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap; }
+  header h1 { font-size: 20px; font-weight: 500; }
+  header p { font-size: 13px; color: var(--muted); }
+  .scenario-bar { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0.75rem 2rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .scenario-btn { padding: 6px 16px; border-radius: 20px; border: 0.5px solid var(--border); background: transparent; font-size: 13px; cursor: pointer; color: var(--text); transition: background 0.15s; }
+  .scenario-btn:hover { background: #f0efeb; }
+  .scenario-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+  main { padding: 1.5rem 2rem; max-width: 1140px; margin: 0 auto; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+  .metric { background: #f1efe8; border-radius: var(--radius); padding: 0.9rem 1rem; }
+  .metric-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .metric-value { font-size: 24px; font-weight: 500; }
+  .metric-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .aqi-good { color: #27500a; } .aqi-mod { color: #633806; } .aqi-sens { color: #854f0b; } .aqi-bad { color: #791f1f; }
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+  .card-title { font-size: 14px; font-weight: 500; margin-bottom: 1rem; }
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.7rem; }
+  .slider-row label { font-size: 13px; color: var(--muted); min-width: 155px; }
+  .slider-row input[type=range] { flex: 1; }
+  .slider-row .val { font-size: 13px; font-weight: 500; min-width: 72px; text-align: right; }
+  .aqi-bar-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .aqi-track { height: 10px; border-radius: 5px; background: linear-gradient(to right, #639922, #ef9f27, #e24b4a, #791f1f); position: relative; }
+  .aqi-needle { position: absolute; top: -4px; width: 4px; height: 18px; background: var(--text); border-radius: 2px; transform: translateX(-50%); transition: left 0.25s; }
+  .solution-badge { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 20px; margin-bottom: 8px; font-weight: 500; }
+  .badge-blue { background: #e6f1fb; color: #0c447c; border: 0.5px solid #378add; }
+  .badge-green { background: #eaf3de; color: #27500a; border: 0.5px solid #639922; }
+  .solution-card { border-radius: var(--radius); border: 0.5px solid var(--border); background: var(--surface); padding: 1.25rem; margin-bottom: 1rem; }
+  .solution-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .solution-card p { font-size: 13px; color: var(--muted); margin-bottom: 1rem; }
+  .compare-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+  .compare-bar-bg { flex: 1; height: 8px; background: #f1efe8; border-radius: 4px; overflow: hidden; }
+  .compare-bar-fill { height: 100%; border-radius: 4px; transition: width 0.35s; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; font-size: 12px; color: var(--muted); padding: 6px 8px; border-bottom: 0.5px solid var(--border); }
+  td { padding: 7px 8px; border-bottom: 0.5px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .chart-wrap { position: relative; width: 100%; }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 10px; font-size: 12px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 5px; }
+  .ld { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .footnote { font-size: 11px; color: var(--muted); margin-top: 1rem; border-top: 0.5px solid var(--border); padding-top: 0.75rem; }
+  .voc-section { background: #faeeda; border: 0.5px solid #ef9f27; border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 1.5rem; }
+  .voc-mini { background: #fff8ee; border-radius: 8px; padding: 0.75rem; border: 0.5px solid #ef9f27; }
+  .voc-mini-label { font-size: 11px; color: #854f0b; margin-bottom: 4px; }
+  .voc-mini-val { font-size: 20px; font-weight: 500; color: #633806; }
+  .voc-mini-unit { font-size: 11px; color: #854f0b; }
+  .voc-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 1rem; }
+  @media (max-width: 700px) {
+    main { padding: 1rem; }
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-2 { grid-template-columns: 1fr; }
+    .slider-row label { min-width: 120px; }
+    .voc-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Joppa Neighborhood — Air Quality Model</h1>
+  <p>Dallas, TX · Asphalt plants (2) emission simulation · Every slider updates all charts in real time</p>
+  <p style="font-size:13px;color:var(--muted);margin-top:0.75rem;line-height:1.5;">
+    This tool models the Joppa Neighborhood in Dallas, Texas which has been the center of a long-running debate on air quality equity, Joppa was the first predominantly Black neighbourhood in Dallas and it has been classified as a ‘Sacrifice Zone’ for many years and the construction of the two asphalt plants is at the center of it. This tool models the ambient air quality (PM2.5, PM10, VOC) at 200m from two asphalt plants using EPA AP-42 emission factors and Gaussian plume dispersion. You can adjust throughput, baghouse efficiency, wind speed, and dust factors to explore how operational changes affect nearby residents. The Gaussian plume model is well-suited to this urban industrial scenario because it accounts for stack height, atmospheric stability, and how concentrations decline with distance. The tool produces real-time AQI values (combining PM2.5 and PM10), concentration maps, downwind dispersion profiles, and side-by-side comparisons across baseline, baghouse upgrade, and plant removal scenarios.
+</header>
+
+<div style="background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 1.5rem 2rem; text-align: center;">
+  <img src="Joppa Drawing.jpg" alt="Map showing Joppa neighborhood and asphalt plants" style="max-width: 100%; max-height: 400px; border-radius: 10px; margin-bottom: 0.75rem;">
+  <p style="font-size:12px;color:var(--muted);font-style:italic;">Making Thinking Visible</p>
+</div>
+
+<div class="scenario-bar">
+  <span style="font-size:13px;color:var(--muted);">Scenario:</span>
+  <button class="scenario-btn active" onclick="setScenario('baseline',this)">Current baseline</button>
+  <button class="scenario-btn" onclick="setScenario('baghouse',this)">Advanced baghouses</button>
+  <button class="scenario-btn" onclick="setScenario('removal',this)">Plant removal (rezoning)</button>
+</div>
+
+<main>
+
+  <div class="grid-4">
+    <div class="metric">
+      <div class="metric-label">PM2.5</div>
+      <div class="metric-value" id="m-pm25">—</div>
+      <div class="metric-unit">µg/m³ at 200 m</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">PM10</div>
+      <div class="metric-value" id="m-pm10">—</div>
+      <div class="metric-unit">µg/m³ at 200 m</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">VOC (benzene-equiv.)</div>
+      <div class="metric-value" id="m-voc" style="color:#633806;">—</div>
+      <div class="metric-unit">µg/m³ at 200 m</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Air Quality Index</div>
+      <div class="metric-value" id="m-aqi">—</div>
+      <div class="metric-unit" id="m-aqicat">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">AQI gauge — PM2.5 & PM10 combined</div>
+    <div class="aqi-bar-label"><span>Good (0)</span><span>Moderate (51)</span><span>Sensitive groups (101)</span><span>Unhealthy (151)</span><span>Hazardous (301)</span></div>
+    <div class="aqi-track"><div class="aqi-needle" id="aqi-needle" style="left:0%"></div></div>
+    <div style="margin-top:8px;font-size:12px;color:var(--muted);">EPA NAAQS (2024): 9 µg/m³ annual PM2.5 · 35 µg/m³ 24-hr PM2.5 · TCEQ benzene TASA: 1.4 µg/m³</div>
+  </div>
+
+  <div class="grid-2">
+
+    <div class="card">
+      <div class="card-title">Emission controls</div>
+
+      <div class="slider-row">
+        <label>Asphalt throughput</label>
+        <input type="range" min="50" max="500" step="10" value="300" id="s-throughput" oninput="update()">
+        <span class="val" id="o-throughput">300 t/hr</span>
+      </div>
+      <div class="slider-row">
+        <label>Baghouse efficiency</label>
+        <input type="range" min="80" max="99.9" step="0.1" value="95" id="s-baghouse" oninput="update()">
+        <span class="val" id="o-baghouse">95.0%</span>
+      </div>
+      <div class="slider-row">
+        <label>Stack height</label>
+        <input type="range" min="10" max="60" step="1" value="25" id="s-stack" oninput="update()">
+        <span class="val" id="o-stack">25 m</span>
+      </div>
+      <div class="slider-row">
+        <label>Wind speed</label>
+        <input type="range" min="1" max="10" step="0.1" value="3" id="s-wind" oninput="update()">
+        <span class="val" id="o-wind">3.0 m/s</span>
+      </div>
+      <div class="slider-row">
+        <label>Ops hours / day</label>
+        <input type="range" min="4" max="24" step="1" value="16" id="s-hours" oninput="update()">
+        <span class="val" id="o-hours">16 hr/day</span>
+      </div>
+      <div class="slider-row">
+        <label>Fugitive dust factor</label>
+        <input type="range" min="1" max="5" step="0.1" value="5" id="s-fugitive" oninput="update()">
+        <span class="val" id="o-fugitive">2.0x</span>
+      </div>
+
+      <div style="border-top:0.5px solid var(--border);margin-top:0.5rem;padding-top:0.75rem;">
+        <div class="slider-row">
+          <label style="color:#633806;font-weight:500;">VOC emission rate</label>
+          <input type="range" min="0.5" max="10" step="0.1" value="3.2" id="s-voc" oninput="update()">
+          <span class="val" id="o-voc" style="color:#633806;">3.2 kg/hr</span>
+        </div>
+        <div style="font-size:11px;color:#854f0b;padding-left:165px;margin-top:-4px;margin-bottom:0.25rem;">
+          BTEX and PAHs from heated bitumen (EPA AP-42 11.1). Not captured by baghouses; requires thermal oxidizer.
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;border-top:0.5px solid var(--border);padding-top:1rem;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Live emission breakdown — active scenario</div>
+        <table>
+          <thead><tr><th>Pollutant</th><th>Rate (kg/hr)</th><th>200 m conc.</th><th>vs. standard</th></tr></thead>
+          <tbody id="emissions-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Dispersion plume — Joppa neighborhood</div>
+      <canvas id="plumeCanvas" width="500" height="190" role="img" aria-label="Gaussian dispersion plume showing PM2.5 concentration gradient downwind of the asphalt plants through the Joppa neighborhood of Dallas"></canvas>
+      <div style="margin-top:8px;display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap;">
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#e24b4a;"></span>High (&gt;35 µg/m³)</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#ef9f27;"></span>Moderate (9–35)</span>
+        <span style="display:flex;align-items:center;gap:4px;"><span style="width:10px;height:10px;border-radius:2px;background:#97c459;"></span>Low (&lt;9 µg/m³)</span>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Downwind concentration — PM2.5 and VOC across all scenarios</div>
+        <div class="legend" style="margin-bottom:6px;">
+          <span><span class="ld" style="background:#e24b4a;"></span>PM2.5 baseline</span>
+          <span><span class="ld" style="background:#378add;"></span>PM2.5 baghouses</span>
+          <span><span class="ld" style="background:#639922;"></span>PM2.5 removal</span>
+          <span><span class="ld" style="background:#ef9f27;"></span>VOC baseline</span>
+          <span><span class="ld" style="background:#888780;"></span>Limits</span>
+        </div>
+        <div class="chart-wrap" style="height:190px;">
+          <canvas id="dispChart" role="img" aria-label="Line chart of PM2.5 and VOC concentrations at distances from 50m to 2km under all three scenarios"></canvas>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="voc-section">
+    <div class="card-title" style="color:#633806;">VOC detail — volatile organic compounds from hot-mix bitumen</div>
+    <div class="voc-grid">
+      <div class="voc-mini">
+        <div class="voc-mini-label">Benzene at 200 m</div>
+        <div class="voc-mini-val" id="voc-benzene">—</div>
+        <div class="voc-mini-unit">µg/m³ · TCEQ TASA limit: 1.4</div>
+      </div>
+      <div class="voc-mini">
+        <div class="voc-mini-label">Total VOC stack emission</div>
+        <div class="voc-mini-val" id="voc-total">—</div>
+        <div class="voc-mini-unit">kg/hr</div>
+      </div>
+      <div class="voc-mini">
+        <div class="voc-mini-label">Ozone precursor index</div>
+        <div class="voc-mini-val" id="voc-ozone">—</div>
+        <div class="voc-mini-unit">VOC-weighted contribution</div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#854f0b;line-height:1.6;">
+      Hot-mix asphalt emits BTEX (benzene, toluene, ethylbenzene, xylenes) and PAHs from heated bitumen.
+      Baghouses capture particulates but <strong>do not reduce VOCs</strong> — thermal oxidizers or carbon adsorbers are needed.
+      VOCs act as ozone precursors worsening regional smog. Benzene is a Group 1 IARC carcinogen with no safe threshold.
+      Adjust the VOC slider to model permit variation or equipment wear.
+    </div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:1.5rem;">
+
+    <div class="solution-card">
+      <div class="solution-badge badge-blue">Engineering solution 1</div>
+      <h3>Advanced baghouse filtration upgrade</h3>
+      <p>Pulse-jet baghouses at 99.5–99.9% PM capture + enclosures for fugitive dust. VOC requires an additional thermal oxidizer or activated carbon unit — shown separately below.</p>
+
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:var(--muted);">PM2.5</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="bh-pm25-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;" id="bh-pm25-lbl"></span>
+      </div>
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:var(--muted);">PM10</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="bh-pm10-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;" id="bh-pm10-lbl"></span>
+      </div>
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:#854f0b;">VOC</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="bh-voc-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;color:#854f0b;" id="bh-voc-lbl"></span>
+      </div>
+
+      <table style="margin-top:1rem;">
+        <thead><tr><th>Metric</th><th>Baseline</th><th>With upgrade</th><th>Change</th></tr></thead>
+        <tbody id="bh-table"></tbody>
+      </table>
+      <div style="margin-top:1rem;font-size:12px;color:var(--muted);">
+        Baghouse capital: $1.5M–$3M · 6–18 months · O&amp;M +$200k/yr<br>
+        + Thermal oxidizer for VOC: $800k–$2M additional · reduces VOC by ~85%
+      </div>
+    </div>
+
+    <div class="solution-card">
+      <div class="solution-badge badge-green">Engineering solution 2</div>
+      <h3>Plant removal via rezoning</h3>
+      <p>Reclassify parcel from industrial (IL) to residential/mixed-use under Dallas forwardDallas! 2.0. Eliminates all point-source PM and VOC entirely. Residual ambient levels from traffic and regional sources remain.</p>
+
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:var(--muted);">PM2.5</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="rz-pm25-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;" id="rz-pm25-lbl"></span>
+      </div>
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:var(--muted);">PM10</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="rz-pm10-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;" id="rz-pm10-lbl"></span>
+      </div>
+      <div class="compare-row">
+        <span style="min-width:60px;font-size:12px;color:#854f0b;">VOC</span>
+        <div class="compare-bar-bg"><div class="compare-bar-fill" id="rz-voc-bar"></div></div>
+        <span style="min-width:95px;font-size:12px;text-align:right;color:#27500a;" id="rz-voc-lbl"></span>
+      </div>
+
+      <table style="margin-top:1rem;">
+        <thead><tr><th>Metric</th><th>Baseline</th><th>After removal</th><th>Change</th></tr></thead>
+        <tbody id="rz-table"></tbody>
+      </table>
+      <div style="margin-top:1rem;font-size:12px;color:var(--muted);">
+        Requires Dallas City Council rezoning vote · Timeline: 2–5 yrs · ~40 job displacement · Community land value uplift<br>
+        Estimated relocation cost: $5M–$15M · Land remediation: $2M–$8M · Lost tax base ~$200k/yr
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">Scenario comparison — PM2.5 by distance</div>
+    <div class="legend">
+      <span><span class="ld" style="background:#e24b4a;"></span>Baseline</span>
+      <span><span class="ld" style="background:#378add;"></span>Baghouses</span>
+      <span><span class="ld" style="background:#639922;"></span>Removal</span>
+    </div>
+    <div class="chart-wrap" style="height:210px;">
+      <canvas id="compareChart" role="img" aria-label="Grouped bar chart comparing PM2.5 at 100m, 300m, 600m and background for all three scenarios"></canvas>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">Scenario comparison — VOC / benzene-equivalent by distance</div>
+    <div class="legend">
+      <span><span class="ld" style="background:#e24b4a;"></span>Baseline</span>
+      <span><span class="ld" style="background:#378add;"></span>Baghouses (VOC unchanged)</span>
+      <span><span class="ld" style="background:#639922;"></span>Removal</span>
+    </div>
+    <div class="chart-wrap" style="height:190px;">
+      <canvas id="vocChart" role="img" aria-label="Grouped bar chart comparing VOC concentrations at four distances across three scenarios"></canvas>
+    </div>
+  </div>
+
+  <div class="footnote">
+    Dispersion model: Gaussian plume, Pasquill-Gifford stability class C. PM emission factors: EPA AP-42 §11.1 (0.107 lb/ton PM-10 baseline, stack + fugitive).
+    VOC/BTEX factors: EPA AP-42 §11.1 Table 11.1-7; bitumen volatilization at 325°F load-out temperature per EPA test data. Benzene fraction: ~18% of total VOC.
+    Background: PM2.5 8 µg/m³ · PM10 26 µg/m³ · VOC (benzene-equiv.) 0.8 µg/m³ (Dallas ambient; EPA AQS and TCEQ monitoring data).
+    Baghouse scenario: 99.5% PM control efficiency, fugitive dust reduction ×0.4, VOC unchanged (requires separate thermal oxidizer per EPA). Removal scenario: all plant emissions set to zero.
+    Source: EPA-454/R-00-019 (December 2000) Hot Mix Asphalt Plants Emission Assessment Report.
+  </div>
+
+</main>
+
+<script>
+const BG_PM25 = 8, BG_PM10 = 26, BG_VOC = 0.8;
+const DISTS = [100, 300, 600, 2000];
+const DLABELS = ['100 m', '300 m', '600 m', 'Background'];
+const DD = [50,100,200,300,500,750,1000,1500,2000];
+const DDLABELS = DD.map(d => d>=1000?(d/1000).toFixed(1)+'km':d+'m');
+
+let scenario = 'baseline';
+let CH = {};
+
+function getP() {
+  return {
+    throughput: +document.getElementById('s-throughput').value,
+    baghouse:   +document.getElementById('s-baghouse').value,
+    stack:      +document.getElementById('s-stack').value,
+    wind:       +document.getElementById('s-wind').value,
+    hours:      +document.getElementById('s-hours').value,
+    fugitive:   +document.getElementById('s-fugitive').value,
+    voc:        +document.getElementById('s-voc').value
+  };
+}
+
+function calcPMkg(throughput, bEff, hours, fugitive) {
+  // EPA AP-42 §11.1 emission factors for hot mix asphalt plants
+  // Stack emissions: 0.107 lb/ton PM-10 (uncontrolled)
+  // Fugitive emissions: ~0.05 lb/ton from aggregate handling
+  const stackEF = 0.107; // EPA baseline, lb/ton PM-10
+  const fugitiveEF = 0.05; // lb/ton fugitive dust
+  const lbToKg = 0.453592; // conversion factor
+  
+  // Daily emissions calculation
+  // throughput = t/hr, hours = operating hours/day
+  // Result = kg/day of each PM fraction
+  const dailyTons = throughput * hours; // total tons processed per day
+  
+  // Stack PM-10 from dryer (reduced by baghouse efficiency)
+  const stackPM10_lb = dailyTons * stackEF * (1 - bEff/100);
+  const stackPM10_kg = stackPM10_lb * lbToKg;
+  const stackPM25_kg = stackPM10_kg * 0.45; // PM-2.5 is ~45% of PM-10
+  
+  // Fugitive dust from material handling (aggregate, transfer operations)
+  // Not significantly reduced by baghouse
+  const fugitivePM10_lb = dailyTons * fugitiveEF * fugitive;
+  const fugitivePM10_kg = fugitivePM10_lb * lbToKg;
+  const fugitivePM25_kg = fugitivePM10_kg * 0.25; // PM-2.5 fraction
+  
+  return { 
+    pm10: stackPM10_kg + fugitivePM10_kg, 
+    pm25: stackPM25_kg + fugitivePM25_kg 
+  };
+}
+
+function gauss(Q, u, H, x) {
+  if (x<=0||u<=0) return 0;
+  const sy = 0.22*x*Math.pow(1+0.0001*x,-0.5);
+  const sz = 0.16*x*Math.pow(1+0.0001*x,-0.5);
+  if (sy<=0||sz<=0) return 0;
+  return Math.max(0, Q/(Math.PI*sy*sz*u) * Math.exp(-0.5*(H/sz)**2) * 1e6);
+}
+
+function computeAll(p) {
+  function sc(bEff, fug, vocRate, isRemoval) {
+    if (isRemoval) {
+      return {
+        pm25: BG_PM25, pm10: BG_PM10, voc: BG_VOC,
+        pm25A: DISTS.map(()=>BG_PM25), pm10A: DISTS.map(()=>BG_PM10), vocA: DISTS.map(()=>BG_VOC),
+        pm25D: DD.map(()=>BG_PM25), vocD: DD.map(()=>BG_VOC),
+        kgPM25: 0, kgPM10: 0, kgVOC: 0
+      };
+    }
+    const em = calcPMkg(p.throughput, bEff, p.hours, fug);
+    const emScale = 2; // 2 plants
+    const Q25=em.pm25*emScale/3600, Q10=em.pm10*emScale/3600, Qv=vocRate*emScale/3600;
+    const c25=(x)=>Math.min(5000, BG_PM25+gauss(Q25,p.wind,p.stack,x));
+    const c10=(x)=>Math.min(8000, BG_PM10+gauss(Q10,p.wind,p.stack,x));
+    const cv =(x)=>Math.min(1000,  BG_VOC +gauss(Qv, p.wind,p.stack,x));
+    return {
+      pm25: c25(200), pm10: c10(200), voc: cv(200),
+      pm25A: DISTS.map(d=>d>=1500?BG_PM25:c25(d)),
+      pm10A: DISTS.map(d=>d>=1500?BG_PM10:c10(d)),
+      vocA:  DISTS.map(d=>d>=1500?BG_VOC :cv(d)),
+      pm25D: DD.map(d=>c25(d)),
+      vocD:  DD.map(d=>cv(d)),
+      kgPM25: em.pm25*2, kgPM10: em.pm10*2, kgVOC: vocRate*2
+    };
+  }
+  return {
+    base: sc(p.baghouse, p.fugitive, p.voc, false),
+    bh:   sc(Math.min(99.9,p.baghouse+4.5), p.fugitive*0.4, p.voc, false),
+    rz:   sc(p.baghouse, p.fugitive, p.voc, true)
+  };
+}
+
+const AQI_BREAKPOINTS_PM25 = [
+  {lo: 0.0,   hi: 12.0,  iLo: 0,   iHi: 50},
+  {lo: 12.1,  hi: 35.4,  iLo: 51,  iHi: 100},
+  {lo: 35.5,  hi: 55.4,  iLo: 101, iHi: 150},
+  {lo: 55.5,  hi: 150.4, iLo: 151, iHi: 200},
+  {lo: 150.5, hi: 250.4, iLo: 201, iHi: 300},
+  {lo: 250.5, hi: 500.4, iLo: 301, iHi: 500}
+];
+
+const AQI_BREAKPOINTS_PM10 = [
+  {lo: 0.0,   hi: 54.0,  iLo: 0,   iHi: 50},
+  {lo: 55.0,  hi: 154.0, iLo: 51,  iHi: 100},
+  {lo: 155.0, hi: 254.0, iLo: 101, iHi: 150},
+  {lo: 255.0, hi: 354.0, iLo: 151, iHi: 200},
+  {lo: 355.0, hi: 424.0, iLo: 201, iHi: 300},
+  {lo: 425.0, hi: 604.0, iLo: 301, iHi: 500}
+];
+
+function aqiCalc(c, breakpoints = AQI_BREAKPOINTS_PM25) {
+  if (c <= 0) return 0;
+  for (const bp of breakpoints) {
+    if (c >= bp.lo && c <= bp.hi) {
+      const x = Math.min(Math.max(c, bp.lo), bp.hi);
+      return Math.round((bp.iHi - bp.iLo) / (bp.hi - bp.lo) * (x - bp.lo) + bp.iLo);
+    }
+  }
+  return 500;
+}
+
+function combinedAQI(pm25, pm10) {
+  const aqi25 = aqiCalc(pm25, AQI_BREAKPOINTS_PM25);
+  const aqi10 = aqiCalc(pm10, AQI_BREAKPOINTS_PM10);
+  return Math.max(aqi25, aqi10);
+}
+
+function aqiCls(a) {
+  if (a <= 50) return 'aqi-good';
+  if (a <= 100) return 'aqi-mod';
+  if (a <= 150) return 'aqi-sens';
+  if (a <= 200) return 'aqi-bad';
+  if (a <= 300) return 'aqi-bad';
+  return 'aqi-bad';
+}
+
+function aqiCat(a) {
+  if (a <= 50) return 'Good';
+  if (a <= 100) return 'Moderate';
+  if (a <= 150) return 'Unhealthy for sensitive groups';
+  if (a <= 200) return 'Unhealthy';
+  if (a <= 300) return 'Very Unhealthy';
+  return 'Hazardous';
+}
+function dStr(a,b){const d=a-b;return(d>=0?'+':'')+d.toFixed(1);}
+function pct(val,lim,unit){
+  const p=Math.round(val/lim*100);
+  const c=p>100?'#791f1f':p>80?'#633806':'#27500a';
+  return `<span style="color:${c}">${p}% of ${lim} ${unit}</span>`;
+}
+function bw(v,mx){return Math.min(100,v/Math.max(mx,0.001)*100).toFixed(1)+'%';}
+function pmCol(v){return v<=9?'#639922':v<=35?'#ef9f27':'#e24b4a';}
+
+function drawPlume(canvas, excess, isRemoval) {
+  const ctx=canvas.getContext('2d'), W=canvas.width, H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(isRemoval){
+    ctx.fillStyle='#c0dd97';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#27500a';ctx.font='13px -apple-system,sans-serif';
+    ctx.fillText('No plant emissions — ambient background only',50,H/2);
+    return;
+  }
+  ctx.fillStyle='#dce8f5';ctx.fillRect(0,0,W,H-25);
+  ctx.fillStyle='#ffffff';ctx.fillRect(0,H-25,W,25);
+  
+  const px=55;
+  const py1=H/3;  // First plant (upper)
+  const py2=2*H/3; // Second plant (lower)
+  const pixelsPerMeter = (W - px - 10) / 500; // Scale: canvas represents ~500m downwind
+  
+  // Draw plume from first plant
+  for(let x=px;x<W-10;x+=3){
+    const sp=8+(x-px)*0.19;
+    for(let y=0;y<H-25;y+=3){
+      const c=excess*Math.exp(-0.5*((y-py1)/sp)**2)*Math.exp(-0.0008*(x-px));
+      const n=Math.min(1,c/15); // More responsive divisor
+      let r,g,b;
+      if(n<0.33){r=151;g=196;b=89;}
+      else if(n<0.66){r=239;g=159;b=39;}
+      else{r=226;g=75;b=74;}
+      const opacity = 0.08 + n * 0.35; // Subtler opacity range
+      ctx.fillStyle=`rgba(${r},${g},${b},${opacity})`;
+      ctx.fillRect(x,y,3,3);
+    }
+  }
+  
+  // Draw plume from second plant
+  for(let x=px;x<W-10;x+=3){
+    const sp=8+(x-px)*0.19;
+    for(let y=0;y<H-25;y+=3){
+      const c=excess*Math.exp(-0.5*((y-py2)/sp)**2)*Math.exp(-0.0008*(x-px));
+      const n=Math.min(1,c/15); // More responsive divisor
+      let r,g,b;
+      if(n<0.33){r=151;g=196;b=89;}
+      else if(n<0.66){r=239;g=159;b=39;}
+      else{r=226;g=75;b=74;}
+      const opacity = 0.08 + n * 0.35; // Subtler opacity range
+      ctx.fillStyle=`rgba(${r},${g},${b},${opacity})`;
+      ctx.fillRect(x,y,3,3);
+    }
+  }
+  
+  // Draw first plant
+  ctx.fillStyle='#444';ctx.fillRect(px-11,py1-18,22,36);
+  ctx.fillStyle='#888';ctx.fillRect(px-4,py1-32,8,16);
+  
+  // Draw second plant
+  ctx.fillStyle='#444';ctx.fillRect(px-11,py2-18,22,36);
+  ctx.fillStyle='#888';ctx.fillRect(px-4,py2-32,8,16);
+  
+  // Draw 200m reference line (measurement point)
+  const ref200 = px + 200 * pixelsPerMeter;
+  ctx.strokeStyle='rgba(0,0,0,0.3)';ctx.lineWidth=2;ctx.setLineDash([5,5]);
+  ctx.beginPath();ctx.moveTo(ref200,0);ctx.lineTo(ref200,H-25);ctx.stroke();ctx.setLineDash([]);
+  
+  // Distance scale labels at bottom
+  ctx.fillStyle='#5f5e5a';ctx.font='11px -apple-system,sans-serif';
+  ctx.textAlign='center';
+  const distances = [0, 100, 200, 300, 400, 500];
+  distances.forEach(d => {
+    const xPos = px + d * pixelsPerMeter;
+    if (xPos < W - 10) {
+      // Draw tick mark
+      ctx.strokeStyle='#5f5e5a';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(xPos,H-25);ctx.lineTo(xPos,H-20);ctx.stroke();
+      // Draw label
+      ctx.fillText(d+'m', xPos, H-8);
+    }
+  });
+  
+  // Labels
+  ctx.fillStyle='#0c447c';ctx.font='11px -apple-system,sans-serif';ctx.textAlign='left';
+  ctx.fillText('Plant 1',px-24,py1+34);
+  ctx.fillText('Plant 2',px-24,py2+34);
+  ctx.fillText('Joppa residential',px+70,16);
+  ctx.fillText('Wind →',W-62,25);
+}
+
+function setOrUpdate(id, type, data, opts) {
+  if(!CH[id]){
+    const ctx=document.getElementById(id).getContext('2d');
+    CH[id]=new Chart(ctx,{type,data,options:opts});
+  } else {
+    data.datasets.forEach((ds,i)=>{ if(CH[id].data.datasets[i]) CH[id].data.datasets[i].data=ds.data; });
+    if(opts&&opts.scales&&opts.scales.y&&opts.scales.y.max!==undefined)
+      CH[id].options.scales.y.max=opts.scales.y.max;
+    CH[id].data.labels=data.labels;
+    CH[id].update();
+  }
+}
+
+const baseOpts = {responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+': '+c.parsed.y.toFixed(2)+' µg/m³'}}}};
+
+function update() {
+  const p = getP();
+
+  document.getElementById('o-throughput').textContent = p.throughput+' t/hr';
+  document.getElementById('o-baghouse').textContent   = p.baghouse.toFixed(1)+'%';
+  document.getElementById('o-stack').textContent      = p.stack+' m';
+  document.getElementById('o-wind').textContent       = p.wind.toFixed(1)+' m/s';
+  document.getElementById('o-hours').textContent      = p.hours+' hr/day';
+  document.getElementById('o-fugitive').textContent   = p.fugitive.toFixed(1)+'x';
+  document.getElementById('o-voc').textContent        = p.voc.toFixed(1)+' kg/hr';
+
+  const {base,bh,rz} = computeAll(p);
+  const S = scenario==='baseline'?base:scenario==='baghouse'?bh:rz;
+
+  document.getElementById('m-pm25').textContent = S.pm25.toFixed(1);
+  document.getElementById('m-pm10').textContent = S.pm10.toFixed(1);
+  document.getElementById('m-voc').textContent  = S.voc.toFixed(2);
+
+  const aqiV=combinedAQI(S.pm25, S.pm10);
+  document.getElementById('m-aqi').textContent    = aqiV;
+  document.getElementById('m-aqi').className      = 'metric-value '+aqiCls(aqiV);
+  document.getElementById('m-aqicat').textContent = aqiCat(aqiV);
+  document.getElementById('aqi-needle').style.left= Math.min(97,aqiV/500*100).toFixed(1)+'%';
+
+  const benzene=(S.voc*0.18).toFixed(3);
+  document.getElementById('voc-benzene').textContent = benzene;
+  document.getElementById('voc-total').textContent   = S.kgVOC.toFixed(2);
+  document.getElementById('voc-ozone').textContent   = Math.round(S.voc*4.2);
+
+  const em = scenario==='removal'
+    ? {pm25:0,pm10:0}
+    : scenario==='baghouse'
+      ? calcPMkg(p.throughput,Math.min(99.9,p.baghouse+4.5),p.hours,p.fugitive*0.4)
+      : calcPMkg(p.throughput,p.baghouse,p.hours,p.fugitive);
+  const kgVOC = scenario==='removal'?0:p.voc*2;
+
+  document.getElementById('emissions-table').innerHTML = [
+    ['PM2.5', (em.pm25*2||0).toFixed(2), S.pm25.toFixed(1)+' µg/m³', pct(S.pm25,9,'µg/m³')],
+    ['PM10',  (em.pm10*2||0).toFixed(2), S.pm10.toFixed(1)+' µg/m³', pct(S.pm10,150,'µg/m³')],
+    ['VOC total', kgVOC.toFixed(2), S.voc.toFixed(2)+' µg/m³', '— (no federal ambient std)'],
+    ['Benzene', (kgVOC*0.18).toFixed(3), (S.voc*0.18).toFixed(3)+' µg/m³', pct(S.voc*0.18,1.4,'µg/m³')]
+  ].map(([n,k,c,s])=>`<tr><td>${n}</td><td>${k} kg/hr</td><td>${c}</td><td>${s}</td></tr>`).join('');
+
+  const mxPM=Math.max(base.pm25,20), mxV=Math.max(base.voc,2);
+
+  const setBar=(id,val,mx,col)=>{ document.getElementById(id).style.width=bw(val,mx); document.getElementById(id).style.background=col; };
+  setBar('bh-pm25-bar',bh.pm25,mxPM,pmCol(bh.pm25));
+  setBar('bh-pm10-bar',bh.pm10,Math.max(base.pm10,20),pmCol(bh.pm10));
+  setBar('bh-voc-bar', bh.voc, mxV,'#ef9f27');
+  setBar('rz-pm25-bar',rz.pm25,mxPM,'#639922');
+  setBar('rz-pm10-bar',rz.pm10,Math.max(base.pm10,20),'#639922');
+  setBar('rz-voc-bar', rz.voc, mxV,'#639922');
+
+  document.getElementById('bh-pm25-lbl').textContent = bh.pm25.toFixed(1)+' µg/m³';
+  document.getElementById('bh-pm10-lbl').textContent = bh.pm10.toFixed(1)+' µg/m³';
+  document.getElementById('bh-voc-lbl').textContent  = bh.voc.toFixed(2)+' µg/m³';
+  document.getElementById('rz-pm25-lbl').textContent = rz.pm25.toFixed(1)+' µg/m³';
+  document.getElementById('rz-pm10-lbl').textContent = rz.pm10.toFixed(1)+' µg/m³';
+  document.getElementById('rz-voc-lbl').textContent  = rz.voc.toFixed(2)+' µg/m³';
+
+  document.getElementById('bh-table').innerHTML = [
+    ['PM2.5 (µg/m³)',   base.pm25.toFixed(1), bh.pm25.toFixed(1), dStr(bh.pm25,base.pm25), bh.pm25<base.pm25],
+    ['PM10 (µg/m³)',    base.pm10.toFixed(1), bh.pm10.toFixed(1), dStr(bh.pm10,base.pm10), bh.pm10<base.pm10],
+    ['VOC (µg/m³)',     base.voc.toFixed(2),  bh.voc.toFixed(2),  dStr(bh.voc,base.voc)+' (baghouse only)', false],
+    ['AQI',             aqiCalc(base.pm25),   aqiCalc(bh.pm25),   dStr(aqiCalc(bh.pm25),aqiCalc(base.pm25)), aqiCalc(bh.pm25)<aqiCalc(base.pm25)],
+    ['Meets EPA PM std',base.pm25<=9?'Yes':'No', bh.pm25<=9?'Yes':'No', '', '']
+  ].map(([m,a,b,d,good])=>`<tr><td>${m}</td><td>${a}</td><td>${b}</td><td style="color:${good?'#27500a':'#791f1f'}">${d}</td></tr>`).join('');
+
+  document.getElementById('rz-table').innerHTML = [
+    ['PM2.5 (µg/m³)',   base.pm25.toFixed(1), rz.pm25.toFixed(1), dStr(rz.pm25,base.pm25)],
+    ['PM10 (µg/m³)',    base.pm10.toFixed(1), rz.pm10.toFixed(1), dStr(rz.pm10,base.pm10)],
+    ['VOC (µg/m³)',     base.voc.toFixed(2),  rz.voc.toFixed(2),  dStr(rz.voc,base.voc)],
+    ['AQI',             aqiCalc(base.pm25),   aqiCalc(rz.pm25),   dStr(aqiCalc(rz.pm25),aqiCalc(base.pm25))],
+    ['Meets EPA PM std',base.pm25<=9?'Yes':'No','Yes','']
+  ].map(([m,a,b,d])=>`<tr><td>${m}</td><td>${a}</td><td>${b}</td><td style="color:#27500a">${d}</td></tr>`).join('');
+
+  drawPlume(document.getElementById('plumeCanvas'), ((S.pm25-BG_PM25) + (S.pm10-BG_PM10)*0.6) / 2, scenario==='removal');
+
+  setOrUpdate('dispChart','line',{
+    labels:DDLABELS,
+    datasets:[
+      {label:'PM2.5 baseline', data:base.pm25D, borderColor:'#e24b4a', backgroundColor:'rgba(226,75,74,0.07)', fill:true,  tension:0.3,borderWidth:2,  pointRadius:0},
+      {label:'PM2.5 baghouses',data:bh.pm25D,   borderColor:'#378add', fill:false, tension:0.3,borderWidth:1.5,borderDash:[4,3],pointRadius:0},
+      {label:'PM2.5 removal',  data:rz.pm25D,   borderColor:'#639922', fill:false, tension:0,  borderWidth:1.5,borderDash:[2,4],pointRadius:0},
+      {label:'VOC baseline',   data:base.vocD,   borderColor:'#ef9f27', fill:false, tension:0.3,borderWidth:2,  pointRadius:0},
+      {label:'EPA/TCEQ limit', data:DD.map(()=>9),borderColor:'#888780',fill:false, borderWidth:1,borderDash:[6,3],pointRadius:0}
+    ]
+  },{...baseOpts,scales:{
+    x:{grid:{display:false},ticks:{font:{size:10},color:'#888780'}},
+    y:{grid:{color:'rgba(136,135,128,0.15)'},ticks:{font:{size:10},color:'#888780',callback:v=>v.toFixed(0)+' µg/m³'}}
+  }});
+
+  const mxC=Math.max(...base.pm25A,20)+3;
+  const gradCol=(color,alpha)=>color.replace(')',`,${alpha})`).replace('#','rgba(').slice(0,-1)+', '+alpha+')';
+  const baselineColors = base.pm25A.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...base.pm25A));
+    return `rgba(226, 75, 74, ${0.3+intensity*0.7})`;
+  });
+  const baghouseColors = bh.pm25A.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...bh.pm25A));
+    return `rgba(55, 138, 221, ${0.3+intensity*0.7})`;
+  });
+  const removalColors = rz.pm25A.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...rz.pm25A));
+    return `rgba(99, 153, 34, ${0.3+intensity*0.7})`;
+  });
+  setOrUpdate('compareChart','bar',{
+    labels:DLABELS,
+    datasets:[
+      {label:'Baseline', data:base.pm25A, backgroundColor:baselineColors,borderRadius:3},
+      {label:'Baghouses',data:bh.pm25A,   backgroundColor:baghouseColors,borderRadius:3},
+      {label:'Removal',  data:rz.pm25A,   backgroundColor:removalColors,borderRadius:3}
+    ]
+  },{...baseOpts,scales:{
+    x:{grid:{display:false},ticks:{font:{size:11},color:'#888780'}},
+    y:{max:mxC,grid:{color:'rgba(136,135,128,0.15)'},ticks:{font:{size:11},color:'#888780',callback:v=>v.toFixed(1)+' µg/m³'}}
+  }});
+
+  const mxV2=Math.max(...base.vocA,2)+0.4;
+  const vocBaselineColors = base.vocA.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...base.vocA));
+    return `rgba(226, 75, 74, ${0.3+intensity*0.7})`;
+  });
+  const vocBaghouseColors = bh.vocA.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...bh.vocA));
+    return `rgba(55, 138, 221, ${0.3+intensity*0.7})`;
+  });
+  const vocRemovalColors = rz.vocA.map((v,i) => {
+    const intensity = Math.max(0.2, v/Math.max(...rz.vocA));
+    return `rgba(99, 153, 34, ${0.3+intensity*0.7})`;
+  });
+  setOrUpdate('vocChart','bar',{
+    labels:DLABELS,
+    datasets:[
+      {label:'Baseline', data:base.vocA, backgroundColor:vocBaselineColors,borderRadius:3},
+      {label:'Baghouses',data:bh.vocA,   backgroundColor:vocBaghouseColors,borderRadius:3},
+      {label:'Removal',  data:rz.vocA,   backgroundColor:vocRemovalColors,borderRadius:3}
+    ]
+  },{...baseOpts,scales:{
+    x:{grid:{display:false},ticks:{font:{size:11},color:'#888780'}},
+    y:{max:mxV2,grid:{color:'rgba(136,135,128,0.15)'},ticks:{font:{size:11},color:'#888780',callback:v=>v.toFixed(2)+' µg/m³'},
+       title:{display:true,text:'TCEQ benzene TASA: 1.4 µg/m³',font:{size:10},color:'#888780'}}
+  }});
+
+}
+
+function setScenario(s, btn) {
+  scenario = s;
+  document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  
+  // Lock baghouse efficiency to 99.5% for baghouse upgrade scenario
+  if (s === 'baghouse') {
+    document.getElementById('s-baghouse').value = 99.5;
+    document.getElementById('o-baghouse').textContent = '99.5%';
+  } else if (s === 'baseline') {
+    document.getElementById('s-baghouse').value = 95;
+    document.getElementById('o-baghouse').textContent = '95.0%';
+  }
+  
+  // Maximize dust factor for all scenarios except removal
+  if (s !== 'removal') {
+    document.getElementById('s-fugitive').value = 5;
+    document.getElementById('o-fugitive').textContent = '5.0x';
+  }
+  
+  update();
+}
+
+update();
+</script>
+</body>
+</html>
