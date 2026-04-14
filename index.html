@@ -60,6 +60,17 @@
   .voc-mini-val { font-size: 20px; font-weight: 500; color: #633806; }
   .voc-mini-unit { font-size: 11px; color: #854f0b; }
   .voc-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 1rem; }
+  .mcda-cell { display: flex; flex-direction: column; gap: 6px; }
+  .mcda-description { font-size: 13px; color: var(--text); flex: 1; }
+  .mcda-rating { display: flex; align-items: center; gap: 6px; }
+  .mcda-rating input { width: 45px; padding: 4px 6px; border: 0.5px solid var(--border); border-radius: 4px; font-size: 12px; text-align: center; }
+  .mcda-rating span { font-size: 11px; color: var(--muted); }
+  .tab-bar { background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 0 2rem; display: flex; gap: 0; }
+  .tab-btn { padding: 1rem 1.5rem; border: none; background: transparent; font-size: 13px; color: var(--muted); cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--text); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
   @media (max-width: 700px) {
     main { padding: 1rem; }
     .grid-4 { grid-template-columns: 1fr 1fr; }
@@ -79,18 +90,24 @@
 </header>
 
 <div style="background: var(--surface); border-bottom: 0.5px solid var(--border); padding: 1.5rem 2rem; text-align: center;">
-  <img src="Joppa Drawing (1).jpg" alt="Map showing Joppa neighborhood and asphalt plants" style="max-width: 100%; max-height: 400px; margin-bottom: 0.75rem;">
-  <p style="font-size:12px;color:var(--muted);font-style:italic;">Making Thinking Visible</p>
+  <img src="Joppa Drawing.jpg" alt="Map showing Joppa neighborhood and asphalt plants" style="max-width: 100%; max-height: 400px; margin-bottom: 0.75rem;">
+  <p style="font-size:12px;color:var(--muted);font-style:italic;">Embodied Noticing</p>
 </div>
 
-<div class="scenario-bar">
-  <span style="font-size:13px;color:var(--muted);">Scenario:</span>
-  <button class="scenario-btn active" onclick="setScenario('baseline',this)">Current baseline</button>
-  <button class="scenario-btn" onclick="setScenario('baghouse',this)">Advanced baghouses</button>
-  <button class="scenario-btn" onclick="setScenario('removal',this)">Plant removal (rezoning)</button>
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('model',this)">Air Quality Model</button>
+  <button class="tab-btn" onclick="switchTab('framework',this)">Making Thinking Visible</button>
 </div>
 
-<main>
+<div id="tab-model" class="tab-content active">
+  <div class="scenario-bar">
+    <span style="font-size:13px;color:var(--muted);">Scenario:</span>
+    <button class="scenario-btn active" onclick="setScenario('baseline',this)">Current baseline</button>
+    <button class="scenario-btn" onclick="setScenario('baghouse',this)">Advanced baghouses</button>
+    <button class="scenario-btn" onclick="setScenario('removal',this)">Plant removal (rezoning)</button>
+  </div>
+
+  <main>
 
   <div class="grid-4">
     <div class="metric">
@@ -299,6 +316,171 @@
   </div>
 
   <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">MCDA — Multi-Criteria Decision Analysis</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:1rem;">Estimates based on 1–5 scale, 5 being the best. These can be changed to test other scenarios</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:25%;">Criteria</th>
+          <th style="width:37.5%;">Baghouse Upgrade</th>
+          <th style="width:37.5%;">Plant Removal</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:500;">Cost <span style="color:var(--muted);font-weight:400;">× 0.125</span></td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">$2.3M–$5M capital + $200k/yr O&amp;M</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Sources: EPA OAQPS baghouse cost studies; ABB Group, Monmouth, IL</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="3" class="mcda-input" id="mcda-cost-bh" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">$5M–$15M relocation + $2M–$8M remediation</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px;">Sources: Dallas ISD relocation expenses; Texas Natural Resource Conservation Commission remediation protocols</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="2" class="mcda-input" id="mcda-cost-rz" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Environmental Impact <span style="color:var(--muted);font-weight:400;">× 0.125</span></td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">Reduces PM by 85%; VOC unchanged without thermal oxidizer</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="3" class="mcda-input" id="mcda-env-bh" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">Eliminates all plant emissions; restores land use</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="5" class="mcda-input" id="mcda-env-rz" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Public Health <span style="color:var(--muted);font-weight:400;">× 0.50</span></td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">Moderate improvement; residual cancer risk from VOC remains</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="3" class="mcda-input" id="mcda-health-bh" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">Significant improvement; eliminates carcinogenic benzene exposure</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="5" class="mcda-input" id="mcda-health-rz" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Practicality <span style="color:var(--muted);font-weight:400;">× 0.25</span></td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">6–18 months implementation; operating facility continues</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="5" class="mcda-input" id="mcda-pract-bh" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="mcda-cell">
+              <div class="mcda-description">2–5 years; requires City Council rezoning vote; ~40 job displacement</div>
+              <div class="mcda-rating">
+                <input type="number" min="1" max="5" value="2" class="mcda-input" id="mcda-pract-rz" oninput="this.value=Math.max(1,Math.min(5,this.value));calculateMCDAScore()">
+                <span>/5</span>
+              </div>
+            </div>
+          </td>
+        </tr>
+        <tr style="background:#f1efe8;font-weight:500;">
+          <td>Total Score</td>
+          <td style="text-align:center;font-size:16px;color:var(--text);" id="mcda-score-bh">2.75</td>
+          <td style="text-align:center;font-size:16px;color:var(--text);" id="mcda-score-rz">3.95</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:1.5rem;padding-top:1.5rem;border-top:0.5px solid var(--border);">
+      <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:0.75rem;">Criteria importance ranking</div>
+      <ol style="margin-left:1.25rem;font-size:12px;color:var(--muted);line-height:1.8;">
+        <li><strong style="color:var(--text);">Public Health</strong> — Most critical; direct impact on resident wellbeing and carcinogenic exposure</li>
+        <li><strong style="color:var(--text);">Practicality</strong> — Implementation timeline and operational constraints</li>
+        <li><strong style="color:var(--text);">Cost &amp; Environmental Impact (tied)</strong> — Financial impact and long-term ecological/air quality outcomes</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div class="card-title">Detailed cost estimates</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:1rem;">Order-of-magnitude cost breakdown by category, cited to industry standards and local precedent</div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30%;">Cost Category</th>
+          <th style="width:35%;">Baghouse Upgrade</th>
+          <th style="width:35%;">Plant Removal (Rezoning)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="font-weight:500;">Equipment &amp; Installation</td>
+          <td>$1.5M–$2.5M<br><span style="font-size:11px;color:var(--muted);">Pulse-jet baghouse unit + ductwork (EPA OAQPS cost curves; 2024 quotes)</span></td>
+          <td>—<br><span style="font-size:11px;color:var(--muted);">N/A</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Thermal Oxidizer (VOC control)</td>
+          <td>$0.8M–$2M<br><span style="font-size:11px;color:var(--muted);">Natural gas-fired or catalytic oxidizer + stack (EPA AP-42; ABB, Monmouth IL)</span></td>
+          <td>—<br><span style="font-size:11px;color:var(--muted);">N/A</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Engineering &amp; Permitting</td>
+          <td>$200K–$300K<br><span style="font-size:11px;color:var(--muted);">Design, AQAQML permits, Title V modification (EPA BACT cost databases)</span></td>
+          <td>$300K–$600K<br><span style="font-size:11px;color:var(--muted);">City rezoning analysis, environmental assessment, legal (Dallas Planning Dept precedent)</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Relocation &amp; Remediation</td>
+          <td>—<br><span style="font-size:11px;color:var(--muted);">N/A</span></td>
+          <td>$5M–$15M<br><span style="font-size:11px;color:var(--muted);">Operator relocating equipment; site remediation per TNRCC Phase I/II (Dallas ISD relocation 2019–2022)</span></td>
+        </tr>
+        <tr>
+          <td style="font-weight:500;">Annual O&amp;M (10-year NPV)</td>
+          <td>$2M–$3M<br><span style="font-size:11px;color:var(--muted);">Filter replacement, fuel for oxidizer, monitoring (EPA default O&amp;M multiplier × capital)</span></td>
+          <td>—<br><span style="font-size:11px;color:var(--muted);">N/A (site no longer industrial)</span></td>
+        </tr>
+        <tr style="background:#f1efe8;font-weight:500;">
+          <td>Total Capital + 10-yr O&amp;M</td>
+          <td>$2.5M–$7.8M</td>
+          <td>$5.3M–$16.1M</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="margin-top:1rem;font-size:12px;color:var(--muted);line-height:1.6;">
+      <strong>Key sources:</strong> EPA OAQPS cost model (2024); ABB cost estimates (Monmouth, IL asphalt plant, 2023); Dallas ISD relocation expense reports (2019–2022); 
+      TNRCC remediation guidance (Texas Standard Remediation Levels); EPA AP-42 emissions control equipment cost database.
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
     <div class="card-title">Scenario comparison — PM2.5 by distance</div>
     <div class="legend">
       <span><span class="ld" style="background:#e24b4a;"></span>Baseline</span>
@@ -331,6 +513,162 @@
   </div>
 
 </main>
+</div>
+
+<div id="tab-framework" class="tab-content" style="padding: 2rem;">
+  <div style="max-width: 900px; margin: 0 auto;">
+    <svg viewBox="0 0 680 820" role="img" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      <title>Joppa Asphalt Plant Dispersion Model Diagram</title>
+      <desc>Visual framework showing asphalt plant emissions source, Gaussian dispersion modeling, two engineering alternatives (baghouses vs rezoning), and four evaluation criteria for the Joppa neighborhood in Southeast Dallas.</desc>
+
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+        <linearGradient id="smokeGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#888780" stop-opacity="0.55"/>
+          <stop offset="55%" stop-color="#888780" stop-opacity="0.22"/>
+          <stop offset="100%" stop-color="#888780" stop-opacity="0.0"/>
+        </linearGradient>
+        <linearGradient id="windGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#3B8BD4" stop-opacity="0.0"/>
+          <stop offset="100%" stop-color="#3B8BD4" stop-opacity="0.55"/>
+        </linearGradient>
+      </defs>
+
+      <rect x="0" y="0" width="680" height="44" fill="none"/>
+      <text x="340" y="16" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="14" font-weight="500" fill="var(--color-text-primary)">Joppa Asphalt Plant — Dispersion Modeling Framework</text>
+      <text x="340" y="32" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" fill="var(--color-text-tertiary)">Southeast Dallas · Gaussian plume dispersion · VOC &amp; PM outputs</text>
+
+      <rect x="0" y="44" width="680" height="230" fill="#E6F1FB" fill-opacity="0.25" rx="0"/>
+      <rect x="0" y="234" width="680" height="40" fill="#C0DD97" fill-opacity="0.3"/>
+
+      <ellipse cx="130" cy="244" rx="62" ry="8" fill="#888780" fill-opacity="0.12"/>
+      <rect x="82" y="170" width="90" height="74" rx="4" fill="#D3D1C7" stroke="#5F5E5A" stroke-width="0.8"/>
+      <polygon points="82,170 172,170 127,148" fill="#B4B2A9" stroke="#5F5E5A" stroke-width="0.8"/>
+      <rect x="94" y="185" width="18" height="14" rx="2" fill="#B5D4F4" fill-opacity="0.7" stroke="#5F5E5A" stroke-width="0.5"/>
+      <rect x="120" y="185" width="18" height="14" rx="2" fill="#B5D4F4" fill-opacity="0.7" stroke="#5F5E5A" stroke-width="0.5"/>
+      <rect x="146" y="185" width="18" height="14" rx="2" fill="#B5D4F4" fill-opacity="0.7" stroke="#5F5E5A" stroke-width="0.5"/>
+      <rect x="116" y="210" width="22" height="34" rx="2" fill="#888780" fill-opacity="0.5" stroke="#5F5E5A" stroke-width="0.5"/>
+
+      <rect x="96" y="120" width="12" height="52" rx="3" fill="#5F5E5A" stroke="#444441" stroke-width="0.5"/>
+      <rect x="116" y="108" width="14" height="64" rx="3" fill="#5F5E5A" stroke="#444441" stroke-width="0.5"/>
+      <rect x="138" y="125" width="12" height="47" rx="3" fill="#5F5E5A" stroke="#444441" stroke-width="0.5"/>
+
+      <path d="M102,118 Q130,98 190,82 Q260,64 360,72 Q430,78 520,90" fill="none" stroke="url(#smokeGrad)" stroke-width="22" stroke-linecap="round" opacity="0.7"/>
+      <path d="M123,106 Q155,84 220,70 Q300,54 400,60 Q470,64 540,74" fill="none" stroke="url(#smokeGrad)" stroke-width="18" stroke-linecap="round" opacity="0.55"/>
+      <path d="M144,123 Q170,106 230,92 Q310,76 420,84 Q490,89 555,98" fill="none" stroke="url(#smokeGrad)" stroke-width="14" stroke-linecap="round" opacity="0.5"/>
+
+      <text x="127" y="260" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="12" font-weight="500" fill="#3C3489">Asphalt plant</text>
+      <text x="127" y="273" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#534AB7">SE Dallas</text>
+
+      <text x="178" y="57" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#185FA5">avg. wind →</text>
+      <line x1="200" y1="48" x2="258" y2="48" stroke="#3B8BD4" stroke-width="1.5" marker-end="url(#arrow)" stroke-opacity="0.7"/>
+
+      <ellipse cx="520" cy="244" rx="100" ry="9" fill="#639922" fill-opacity="0.2"/>
+
+      <rect x="448" y="190" width="44" height="50" rx="3" fill="#FAC775" stroke="#633806" stroke-width="0.7"/>
+      <polygon points="448,190 492,190 470,170" fill="#EF9F27" stroke="#633806" stroke-width="0.7"/>
+      <rect x="458" y="210" width="12" height="16" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+      <rect x="474" y="210" width="12" height="16" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+
+      <rect x="503" y="186" width="46" height="54" rx="3" fill="#FAEEDA" stroke="#633806" stroke-width="0.7"/>
+      <polygon points="503,186 549,186 526,164" fill="#FAC775" stroke="#633806" stroke-width="0.7"/>
+      <rect x="514" y="207" width="12" height="16" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+      <rect x="530" y="207" width="12" height="16" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+
+      <rect x="560" y="194" width="42" height="46" rx="3" fill="#FAC775" stroke="#633806" stroke-width="0.7"/>
+      <polygon points="560,194 602,194 581,176" fill="#EF9F27" stroke="#633806" stroke-width="0.7"/>
+      <rect x="570" y="213" width="10" height="14" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+      <rect x="584" y="213" width="10" height="14" rx="1" fill="#3B8BD4" fill-opacity="0.5" stroke="#633806" stroke-width="0.5"/>
+
+      <rect x="475" y="176" width="36" height="38" rx="3" fill="#FAEEDA" stroke="#633806" stroke-width="0.6" opacity="0.8"/>
+      <polygon points="475,176 511,176 493,160" fill="#FAC775" stroke="#633806" stroke-width="0.6" opacity="0.8"/>
+
+      <text x="522" y="260" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="12" font-weight="500" fill="#3B6D11">Joppa neighborhood</text>
+      <text x="522" y="273" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#639922">receptor population</text>
+
+      <rect x="40" y="288" width="600" height="72" rx="8" fill="none" stroke="#D3D1C7" stroke-width="0.8" stroke-dasharray="4 3"/>
+      <text x="56" y="306" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#5F5E5A">Key assumptions</text>
+
+      <rect x="56" y="313" width="182" height="22" rx="11" fill="#E6F1FB" stroke="#85B7EB" stroke-width="0.6"/>
+      <text x="147" y="328" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#0C447C">Ambient air ≈ baseline Dallas</text>
+
+      <rect x="248" y="313" width="168" height="22" rx="11" fill="#EAF3DE" stroke="#97C459" stroke-width="0.6"/>
+      <text x="332" y="328" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#27500A">Plants at average operation</text>
+
+      <rect x="426" y="313" width="156" height="22" rx="11" fill="#FAEEDA" stroke="#EF9F27" stroke-width="0.6"/>
+      <text x="504" y="328" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#633806">Average weather conditions</text>
+
+      <text x="56" y="354" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#888780">Uncertainty: meteorology variability · actual load fluctuations · receptor exposure time · background source interactions</text>
+
+      <rect x="222" y="376" width="236" height="72" rx="10" fill="#EEEDFE" stroke="#7F77DD" stroke-width="1"/>
+      <text x="340" y="396" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="13" font-weight="500" fill="#26215C">Gaussian plume dispersion</text>
+      <text x="340" y="411" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#534AB7">Inputs: stack height · emission rate · σy σz · wind</text>
+      <text x="340" y="425" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#534AB7">Outputs: ground-level VOC conc. · PM exposure</text>
+      <text x="340" y="440" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#7F77DD">uncertainty: stability class selection · terrain</text>
+
+      <line x1="340" y1="278" x2="340" y2="374" stroke="#7F77DD" stroke-width="1.2" marker-end="url(#arrow)" stroke-opacity="0.7"/>
+
+      <rect x="40" y="472" width="230" height="82" rx="9" fill="#E1F5EE" stroke="#1D9E75" stroke-width="1"/>
+      <text x="155" y="492" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="12" font-weight="500" fill="#04342C">Alt 1 — Baghouse filters</text>
+      <text x="155" y="508" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#085041">Add fabric filter units to stacks</text>
+      <text x="155" y="521" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#085041">Capture PM at source</text>
+      <text x="155" y="537" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#0F6E56">Reduces emissions · plant stays operating</text>
+      <text x="155" y="549" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#1D9E75">Limit: does not address VOC fully</text>
+
+      <rect x="410" y="472" width="230" height="82" rx="9" fill="#FAECE7" stroke="#D85A30" stroke-width="1"/>
+      <text x="525" y="492" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="12" font-weight="500" fill="#4A1B0C">Alt 2 — Rezoning / relocation</text>
+      <text x="525" y="508" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#712B13">Rezone land to eliminate industrial use</text>
+      <text x="525" y="521" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#712B13">Relocate or close asphalt operations</text>
+      <text x="525" y="537" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#993C1D">Eliminates exposure pathway entirely</text>
+      <text x="525" y="549" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#D85A30">Limit: high cost · long timeline · political</text>
+
+      <path d="M280,448 L280,460 L155,460 L155,470" fill="none" stroke="#7F77DD" stroke-width="1.1" marker-end="url(#arrow)" stroke-opacity="0.6"/>
+      <path d="M400,448 L400,460 L525,460 L525,470" fill="none" stroke="#7F77DD" stroke-width="1.1" marker-end="url(#arrow)" stroke-opacity="0.6"/>
+
+      <text x="340" y="458" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#888780">model predicts outcome for each pathway</text>
+
+      <text x="340" y="582" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#5F5E5A">Evaluation criteria</text>
+
+      <rect x="40" y="592" width="138" height="58" rx="8" fill="#FCEBEB" stroke="#E24B4A" stroke-width="0.7"/>
+      <text x="109" y="612" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#501313">Public health</text>
+      <text x="109" y="627" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#791F1F">VOC &amp; PM exposure</text>
+      <text x="109" y="641" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#A32D2D">reduction at receptors</text>
+
+      <rect x="192" y="592" width="138" height="58" rx="8" fill="#EAF3DE" stroke="#639922" stroke-width="0.7"/>
+      <text x="261" y="612" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#173404">Environmental</text>
+      <text x="261" y="627" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#27500A">Ambient air quality</text>
+      <text x="261" y="641" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#3B6D11">+ downstream effects</text>
+
+      <rect x="344" y="592" width="138" height="58" rx="8" fill="#FAEEDA" stroke="#BA7517" stroke-width="0.7"/>
+      <text x="413" y="612" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#412402">Cost</text>
+      <text x="413" y="627" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#633806">Capital + operating</text>
+      <text x="413" y="641" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#854F0B">cost-effectiveness</text>
+
+      <rect x="496" y="592" width="144" height="58" rx="8" fill="#EEEDFE" stroke="#7F77DD" stroke-width="0.7"/>
+      <text x="568" y="612" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#26215C">Practicality</text>
+      <text x="568" y="627" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#3C3489">Implementation</text>
+      <text x="568" y="641" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#534AB7">timeline &amp; feasibility</text>
+
+      <line x1="109" y1="650" x2="109" y2="666" stroke="#E24B4A" stroke-width="0.7" stroke-opacity="0.5"/>
+      <line x1="261" y1="650" x2="261" y2="666" stroke="#639922" stroke-width="0.7" stroke-opacity="0.5"/>
+      <line x1="413" y1="650" x2="413" y2="666" stroke="#BA7517" stroke-width="0.7" stroke-opacity="0.5"/>
+      <line x1="568" y1="650" x2="568" y2="666" stroke="#7F77DD" stroke-width="0.7" stroke-opacity="0.5"/>
+
+      <rect x="40" y="668" width="600" height="48" rx="8" fill="#D3D1C7" fill-opacity="0.2" stroke="#B4B2A9" stroke-width="0.6"/>
+      <text x="340" y="686" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="11" font-weight="500" fill="#444441">Model outputs</text>
+      <text x="340" y="702" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#5F5E5A">Ground-level PM₂.₅ &amp; PM₁₀ concentrations · VOC ground-level concentrations · health risk index at Joppa receptors</text>
+
+      <line x1="175" y1="244" x2="445" y2="244" stroke="#888780" stroke-width="0.6" stroke-dasharray="3 3" opacity="0.7"/>
+      <text x="310" y="240" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#888780">dispersion distance (modeled)</text>
+      <line x1="175" y1="240" x2="175" y2="248" stroke="#888780" stroke-width="0.7"/>
+      <line x1="445" y1="240" x2="445" y2="248" stroke="#888780" stroke-width="0.7"/>
+
+      <text x="340" y="736" text-anchor="middle" font-family="var(--font-sans,sans-serif)" font-size="10" fill="#888780">Uncertainty: stability class selection · actual receptor exposure hours · background source interactions</text>
+    </svg>
+  </div>
+</div>
 
 <script>
 const BG_PM25 = 8, BG_PM10 = 26, BG_VOC = 0.8;
@@ -733,6 +1071,45 @@ function update() {
 
 }
 
+function calculateMCDAScore() {
+  const weights = {
+    cost: 0.125,
+    env: 0.125,
+    health: 0.50,
+    pract: 0.25
+  };
+  
+  const bhScore = (
+    parseFloat(document.getElementById('mcda-cost-bh').value || 0) * weights.cost +
+    parseFloat(document.getElementById('mcda-env-bh').value || 0) * weights.env +
+    parseFloat(document.getElementById('mcda-health-bh').value || 0) * weights.health +
+    parseFloat(document.getElementById('mcda-pract-bh').value || 0) * weights.pract
+  );
+  
+  const rzScore = (
+    parseFloat(document.getElementById('mcda-cost-rz').value || 0) * weights.cost +
+    parseFloat(document.getElementById('mcda-env-rz').value || 0) * weights.env +
+    parseFloat(document.getElementById('mcda-health-rz').value || 0) * weights.health +
+    parseFloat(document.getElementById('mcda-pract-rz').value || 0) * weights.pract
+  );
+  
+  document.getElementById('mcda-score-bh').textContent = bhScore.toFixed(2);
+  document.getElementById('mcda-score-rz').textContent = rzScore.toFixed(2);
+}
+
+function switchTab(tabId, btn) {
+  // Hide all tabs
+  document.getElementById('tab-model').classList.remove('active');
+  document.getElementById('tab-framework').classList.remove('active');
+  
+  // Remove active class from all buttons
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  
+  // Show selected tab
+  document.getElementById('tab-' + tabId).classList.add('active');
+  btn.classList.add('active');
+}
+
 function setScenario(s, btn) {
   scenario = s;
   document.querySelectorAll('.scenario-btn').forEach(b=>b.classList.remove('active'));
@@ -757,6 +1134,7 @@ function setScenario(s, btn) {
 }
 
 update();
+calculateMCDAScore();
 </script>
 </body>
 </html>
